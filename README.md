@@ -10,6 +10,7 @@
 # ------------ Method 2 to add the bash script to the crontab for the linux environment-----------------
 
 # Go to the terminal and enter "sudo crontab -e" and enter the password. 
+# you can also just use "crontab -e" to execute the cronjob without elevated/admin rights.
 
 # Add the following line at the end of the script of this crontab
 
