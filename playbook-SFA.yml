@@ -1,0 +1,183 @@
+---
+- name: Playbook - Syed Furqan Ahmed
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Add User                            #This is the name of the task that is going to be executed - will be printed
+      user:                                     # Defining user characteristics
+        name: devops                            # Username
+        password: ""                            # No password
+        shell : "/bin/bash"                     # Defining default shell
+        state: present                          # Defining user state to be present
+        createhome: yes                         # Create a home directory - yes
+        home: /home/devops                      # Defining home  directory path
+    
+    - name: Installing bzip2, git, wget, apache2, openssl package
+      yum:                                      # Specifying yum
+       state: present                           # These packages should be present, latest can be used also
+       name:                                    # Defining package names
+       - bzip2                                  
+       - git
+       - wget 
+       - httpd # This is apache
+       - openssl-devel
+
+
+# Following the guide of setting up docker in CentOS and convering in YAML syntax
+    - name: Installing required packages for Docker engine      #Following the guide on https://docs.docker.com/install/linux/docker-ce/centos/ and https://artem.services/?p=1418&lang=en
+      yum:
+       state: latest
+       name:                                   #Installing yum dependencies for Docker
+       - yum-utils                             
+       - lvm2
+       - device-mapper-persistent-data
+    
+    - name: Making Docker repository                            # https://artem.services/?p=1418&lang=en
+      get_url:                                                  # Retreive online repository/file from get_url (note: its a file link)
+        url: https://download.docker.com/linux/centos/docker-ce.repo 
+        dest: /etc/yum.repos.d/docker-ce.repo                   # set destination of the repository (its the path of all yum repositories)
+      become: yes                                               # user privilege
+
+    #Installing Docker
+    - name: Install Docker                                       
+      package:                                           # Get a package
+        state: present                                   # Define state and package name (in this case the package is docker-ce-<VERSION>
+        name: docker-ce-18.09.1                          # Could have used docker-ce also but that was encoutering some error at this time
+      become: yes                                               # user privilege
+
+# Following the guide of setting up docker compose in CentOS and convering in YAML syntax
+    - name: Installing  required packages for Docker compose   # Following the guide on https://docs.docker.com/compose/install/
+      yum:
+       state: latest                                           #installing latest yum package dependencies for docker-compose
+       name:                                                   
+       - epel-release
+       - python3-pip                                           
+
+    #We are using pip3 to install docker compose -> https://github.com/docker/compose/issues/7030
+    #We use the following bugfix in case the docker-compose is not INSTALLING. 
+    #If pip3 doesn't work then install yum package python-pip and try the bug fix by using simple 'pip install'. 
+
+#    - name: BUGFIX -> Itertools
+#      become: yes
+#      command: sudo pip3 install 'more-itertools>=4.0.0,<=5.0.0' --force-reinstall    
+ 
+
+    - name: Installing Docker compose using pip-install       #Task name
+      become: yes
+      command: sudo pip3 install docker-compose               #Execute installation command in the terminal using this playbook.
+
+
+#Following the guide of setting up Jenkins in CentOS and converting in YAML syntax
+#https://www.linuxtechi.com/install-configure-jenkins-on-centos-7-rhel-7/
+    
+    - name: Installing required packages (Java-1.8.0-openjdk) for Jenkins
+      yum:
+       state: present
+       name:
+        - java-1.8.0-openjdk.x86_64                           # Installing yum package dependency for jenkins
+
+
+    - name: Making Jenkins Repository
+      become: yes                                                 # user privilege
+      get_url:
+        url: http://pkg.jenkins-ci.org/redhat-stable/jenkins.repo    # Get the file from url like docker repository earlier. 
+        dest: /etc/yum.repos.d/jenkins.repo                          # add the repository file where yum repositories are generally installed
+
+
+    # We learned the rpm_key syntax - key link found online everywhere
+    #https://awsbloglink.wordpress.com/2018/10/08/how-to-install-jenkins-using-ansible-version-2018/
+    
+    - name: Importing Jenkins Key
+      rpm_key:                                                       #syntax for obtaining key
+       key: https://jenkins-ci.org/redhat/jenkins-ci.org.key         #obtain jenkins key from the jenkins official link
+       state: present                                                # user privilege
+    
+    - name: Installing Jenkins                                       #yum install jenkins equivalent
+      yum:
+       state: latest                                                 #install latest jenkins
+       name:
+        - jenkins                                                    #defining yum package name
+
+    - name: Starting Jenkins
+      command: systemctl start jenkins             #systemctl (systemd) is a software suite in Linux for service control and configuration. 
+      become: yes
+
+    - name: Enable Jenkins
+      command: systemctl enable jenkins            #systemctl (systemd) is a software suite in Linux for service control and configuration. 
+      become: yes
+
+#   AN ALTERNATE WAY TO DO THIS IS:                # https://docs.ansible.com/ansible/latest/modules/systemd_module.html
+#
+#   - name: Start and Enable Jenkins
+#     systemd:                                     # ansible playbook / YAML way of executing systemd/systemctl to control services
+#       name: jenkins
+#       state: started
+#       enabled: yes
+    
+    - name: Configuring firewall for Jenkins     # https://docs.ansible.com/ansible/latest/modules/firewalld_module.html
+      firewalld:                                  # YAML way of executing firewalld commands to control
+       zone: public                               # setting zone to public - make it accessible
+       port: 8080/tcp                             # open the port 8080/TCP (PROTOCOL) 
+       permanent: yes                             # permanently hold these settings for jenkins to run smoothly
+       immediate: yes                             # make changes immediately / similar to rebooting the firewall after configuring 
+       state: enabled 																																																																									enabled																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																														                             # see below to see an alternate method run by terminal commands (link referenced)
+
+#   AN ALTERNATE WAY IS TO EXECUTE COMMANDS IN THE TERMINAL. See the starting guide for setting up jenkins referenced above.
+#   Firewall can be altered. 
+
+#    - name: Opening port 80 for jenkins permanently
+#      command: firewall-cmd --zone=public --add-port=8080/tcp --permanent
+            
+
+#    - name: Opening http service for jenkins permanently
+#      command: firewall-cmd --zone=public --add-service=http --permanent
+
+#    - name: Rebooting firewall for changes to come in effect
+#      command: firewall-cmd --reload
+  
+
+       
+
+    
+
+
+# -------------------- OLD TRIES ----------------------#
+
+# we use yum to install some docker dependencies. (this was for Ubuntu)
+
+#    - name: Install required system packages
+#      yum: 
+#       state: latest 
+#       update_cache: yes
+#       name:
+#        - apt-transport-https 
+#        - ca-certificates 
+#        - curl
+#        - software-properties-common
+#        - python3-pip
+#        - virtualenv
+#        - python3-setuptools
+
+# since we are developing this playbook in Ubuntu. 
+# a safe way to setup docker repo and docker on a CentOS 7
+# is to use a pre-defined role.
+
+#    - name: Installing a Ansible role which is tested for CentOS to Setup Docker
+#      command: ansible-galaxy install pauvos.docker_engine
+
+#    - name: Installing a Ansible role which is tested for CentOS to Setup Docker
+#      command: ansible-galaxy install pauvos.docker_compose
+
+#- name: Setting up Docker Repository and Docker using the Ansible Role
+#  hosts: localhost
+#  become: true
+#  roles:
+#    - role: pauvos.docker_engine
+
+
+# -------------------------------------------------------
+
+
+
+    
+
